@@ -1,0 +1,25 @@
+{
+  "name": "mineirinho-backend",
+  "version": "1.0.0",
+  "description": "API REST - Mineirinho de Ouro - Sistema de Gestão",
+  "main": "server.cjs",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.cjs",
+    "dev": "NODE_ENV=development node server.cjs"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.7.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.16.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,12 @@
+alteração de produtos e nova relacao de produro para cliente
+
+atualmente produto e cliente não tem relacaoalguma.
+
+mudanças, os produtos agorapoderão ter até 4 faixas de preços.
+e por qual motivo, preciso disso pois vou classificar os cliente em faixas de preços
+para que eu possa ter preços diferentes para cada faixa de cliente.
+Mas um cliente só poderar estar em uma faixa de preço.
+
+preciso dessa mudança no cadastro e edição de produtos
+no cadastro e edição de cliente 
+
