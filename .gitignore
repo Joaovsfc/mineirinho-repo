@@ -44,3 +44,7 @@ Thumbs.db
 # Misc
 *.local
 Untitled
+nul
+
+# Claude Code
+.claude/
