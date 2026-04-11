@@ -1,0 +1,9 @@
+{
+  "usb_backup_path": "C:\\Users\\Pichau\\Documents\\BKPS",
+  "usb_backup_enabled": false,
+  "usb_backup_interval_hours": 6,
+  "usb_last_backup_at": "2026-04-11T09:52:36.436Z",
+  "usb_last_backup_status": "success",
+  "usb_last_backup_file": "mineirinho-backup-2026-04-11_09-52.db",
+  "usb_last_backup_error": null
+}
