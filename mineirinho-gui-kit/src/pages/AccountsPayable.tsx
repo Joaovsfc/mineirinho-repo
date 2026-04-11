@@ -19,6 +19,7 @@ const AccountsPayable = () => {
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [idFilter, setIdFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateSort, setDateSort] = useState<"asc" | "desc" | null>("asc"); // Padrão: mais antigo primeiro (vencimento)
   const [dateFrom, setDateFrom] = useState<string>("");
@@ -39,7 +40,11 @@ const AccountsPayable = () => {
   // Filtrar e ordenar contas
   const filteredAccounts = useMemo(() => {
     let filtered = accounts;
-    
+
+    if (idFilter.trim()) {
+      filtered = filtered.filter((account: any) => String(account.id).includes(idFilter.trim()));
+    }
+
     // Filtrar por status
     if (statusFilter !== "all") {
       filtered = filtered.filter((account: any) => {
@@ -83,7 +88,7 @@ const AccountsPayable = () => {
     }
     
     return filtered;
-  }, [accounts, statusFilter, dateSort, dateFrom, dateTo]);
+  }, [accounts, idFilter, statusFilter, dateSort, dateFrom, dateTo]);
 
   // Mutation para criar conta
   const createMutation = useMutation({
@@ -388,6 +393,14 @@ const AccountsPayable = () => {
             <div className="flex items-center justify-between">
               <CardTitle>Lista de Contas a Pagar</CardTitle>
               <div className="flex items-center gap-2">
+                <Label htmlFor="id-filter" className="text-sm">ID:</Label>
+                <Input
+                  id="id-filter"
+                  value={idFilter}
+                  onChange={(e) => setIdFilter(e.target.value)}
+                  placeholder="Filtrar..."
+                  className="w-[80px]"
+                />
                 <Label htmlFor="status-filter" className="text-sm">Filtrar por status:</Label>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-[180px]">
@@ -460,6 +473,7 @@ const AccountsPayable = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">#</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>
                     <Button
@@ -487,6 +501,7 @@ const AccountsPayable = () => {
               <TableBody>
                 {paginatedData.map((account: any) => (
                   <TableRow key={account.id}>
+                    <TableCell className="text-xs text-muted-foreground font-mono">{account.id}</TableCell>
                     <TableCell className="font-medium">{account.description}</TableCell>
                     <TableCell>
                       {account.due_date 

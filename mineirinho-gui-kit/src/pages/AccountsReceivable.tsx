@@ -19,6 +19,7 @@ const AccountsReceivable = () => {
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [idFilter, setIdFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateSort, setDateSort] = useState<"asc" | "desc" | null>("asc"); // Padrão: mais antigo primeiro (vencimento)
   const [dateFrom, setDateFrom] = useState<string>("");
@@ -40,7 +41,11 @@ const AccountsReceivable = () => {
   // Filtrar e ordenar contas
   const filteredAccounts = useMemo(() => {
     let filtered = accounts;
-    
+
+    if (idFilter.trim()) {
+      filtered = filtered.filter((account: any) => String(account.id).includes(idFilter.trim()));
+    }
+
     // Filtrar por status
     if (statusFilter !== "all") {
       const today = new Date();
@@ -98,7 +103,7 @@ const AccountsReceivable = () => {
     }
     
     return filtered;
-  }, [accounts, statusFilter, dateSort, dateFrom, dateTo]);
+  }, [accounts, idFilter, statusFilter, dateSort, dateFrom, dateTo]);
 
   // Buscar clientes para o select
   const { data: clients = [] } = useQuery({
@@ -434,6 +439,14 @@ const AccountsReceivable = () => {
             <div className="flex items-center justify-between">
               <CardTitle>Lista de Contas a Receber</CardTitle>
               <div className="flex items-center gap-2">
+                <Label htmlFor="id-filter" className="text-sm">ID:</Label>
+                <Input
+                  id="id-filter"
+                  value={idFilter}
+                  onChange={(e) => setIdFilter(e.target.value)}
+                  placeholder="Filtrar..."
+                  className="w-[80px]"
+                />
                 <Label htmlFor="status-filter" className="text-sm">Filtrar por status:</Label>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-[180px]">
@@ -506,6 +519,8 @@ const AccountsReceivable = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">#</TableHead>
+                  <TableHead>NF</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>
@@ -534,6 +549,10 @@ const AccountsReceivable = () => {
               <TableBody>
                 {paginatedData.map((account: any) => (
                   <TableRow key={account.id}>
+                    <TableCell className="text-xs text-muted-foreground font-mono">{account.id}</TableCell>
+                    <TableCell className="text-xs font-medium">
+                      {account.sale?.nf_number || <span className="text-muted-foreground">-</span>}
+                    </TableCell>
                     <TableCell className="font-medium">
                       {getClientName(account.client_id)}
                     </TableCell>

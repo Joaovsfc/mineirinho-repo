@@ -40,6 +40,7 @@ const Products = () => {
     unit: "un",
   });
   const [currentPage, setCurrentPage] = useState(1);
+  const [idFilter, setIdFilter] = useState("");
   const itemsPerPage = 10;
 
   // Buscar produtos
@@ -48,21 +49,27 @@ const Products = () => {
     queryFn: () => apiService.getProducts(),
   });
 
+  // Filtrar produtos
+  const filteredProducts = useMemo(() => {
+    if (!idFilter.trim()) return products;
+    return products.filter((product: any) => String(product.id).includes(idFilter.trim()));
+  }, [products, idFilter]);
+
   // Calcular paginação
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return products.slice(startIndex, endIndex);
-  }, [products, currentPage]);
+    return filteredProducts.slice(startIndex, endIndex);
+  }, [filteredProducts, currentPage]);
 
-  const totalPages = Math.ceil(products.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
   // Resetar para primeira página quando os dados mudarem
   useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(1);
     }
-  }, [totalPages, currentPage]);
+  }, [totalPages, currentPage, idFilter]);
 
   // Buscar movimentações do produto selecionado
   const { data: movements = [], isLoading: isLoadingMovements } = useQuery({
@@ -484,7 +491,19 @@ const Products = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Produtos</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Lista de Produtos</CardTitle>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="id-filter" className="text-sm">ID:</Label>
+              <Input
+                id="id-filter"
+                value={idFilter}
+                onChange={(e) => setIdFilter(e.target.value)}
+                placeholder="Filtrar..."
+                className="w-[80px]"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -496,14 +515,17 @@ const Products = () => {
             <div className="flex items-center justify-center py-8">
               <p className="text-destructive">Erro ao carregar produtos. Tente novamente.</p>
             </div>
-          ) : products.length === 0 ? (
+          ) : filteredProducts.length === 0 ? (
             <div className="flex items-center justify-center py-8">
-              <p className="text-muted-foreground">Nenhum produto cadastrado ainda.</p>
+              <p className="text-muted-foreground">
+                {products.length === 0 ? "Nenhum produto cadastrado ainda." : "Nenhum produto encontrado com o filtro informado."}
+              </p>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">#</TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead>Preço Unitário</TableHead>
                   <TableHead>Estoque</TableHead>
@@ -536,6 +558,7 @@ const Products = () => {
                     onDoubleClick={() => handleRowDoubleClick(product.id, product.name)}
                     className="cursor-pointer hover:bg-muted/50"
                   >
+                    <TableCell className="text-xs text-muted-foreground font-mono">{product.id}</TableCell>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -611,10 +634,10 @@ const Products = () => {
           )}
           
           {/* Paginação */}
-          {products.length > itemsPerPage && (
+          {filteredProducts.length > itemsPerPage && (
             <div className="mt-4 flex items-center justify-between">
               <div className="text-sm text-muted-foreground">
-                Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, products.length)} de {products.length} produto(s)
+                Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, filteredProducts.length)} de {filteredProducts.length} produto(s)
               </div>
               <div className="flex items-center gap-2">
                 <Button

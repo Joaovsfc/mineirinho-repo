@@ -101,7 +101,7 @@ router.get('/receivable', (req, res) => {
     const accountsWithSale = accounts.map(account => {
       if (account.sale_id) {
         try {
-          const sale = db.prepare('SELECT id, date, total, status FROM sales WHERE id = ?').get(account.sale_id);
+          const sale = db.prepare('SELECT id, date, total, status, nf_number FROM sales WHERE id = ?').get(account.sale_id);
           return { ...account, sale };
         } catch (error) {
           return account;

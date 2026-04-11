@@ -40,8 +40,10 @@ const Sales = () => {
     price: "",
     notes: "",
     due_date: "",
+    nf_number: "",
   });
   const [currentPage, setCurrentPage] = useState(1);
+  const [idFilter, setIdFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateSort, setDateSort] = useState<"asc" | "desc" | null>("desc"); // Padrão: mais recente primeiro
   const [dateFrom, setDateFrom] = useState<string>("");
@@ -57,7 +59,11 @@ const Sales = () => {
   // Filtrar e ordenar vendas
   const filteredSales = useMemo(() => {
     let filtered = sales;
-    
+
+    if (idFilter.trim()) {
+      filtered = filtered.filter((sale: any) => String(sale.id).includes(idFilter.trim()));
+    }
+
     // Filtrar por status
     if (statusFilter !== "all") {
       filtered = filtered.filter((sale: any) => {
@@ -93,7 +99,7 @@ const Sales = () => {
     }
     
     return filtered;
-  }, [sales, statusFilter, dateSort, dateFrom, dateTo]);
+  }, [sales, idFilter, statusFilter, dateSort, dateFrom, dateTo]);
 
   // Calcular paginação
   const paginatedData = useMemo(() => {
@@ -109,7 +115,7 @@ const Sales = () => {
     if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(1);
     }
-  }, [totalPages, currentPage, statusFilter, dateSort, dateFrom, dateTo]);
+  }, [totalPages, currentPage, idFilter, statusFilter, dateSort, dateFrom, dateTo]);
 
   // Handler para alternar ordenação por data
   const handleDateSort = () => {
@@ -190,7 +196,7 @@ const Sales = () => {
         title: "Venda registrada!",
         description: "A venda foi cadastrada com sucesso.",
       });
-      setFormData({ client_id: "", product_id: "", quantity: "", price: "", notes: "" });
+      setFormData({ client_id: "", product_id: "", quantity: "", price: "", notes: "", due_date: "", nf_number: "" });
       setSaleItems([]);
       setIsDialogOpen(false);
     },
@@ -311,7 +317,7 @@ const Sales = () => {
   };
 
   const handleNewSale = () => {
-    setFormData({ client_id: "", product_id: "", quantity: "", price: "", notes: "", due_date: "" });
+    setFormData({ client_id: "", product_id: "", quantity: "", price: "", notes: "", due_date: "", nf_number: "" });
     setSaleItems([]);
     setAutoPriceSelected(false);
   };
@@ -336,6 +342,7 @@ const Sales = () => {
       user_id: user?.id || null,
       notes: formData.notes || null,
       due_date: formData.due_date || null,
+      nf_number: formData.nf_number || null,
     };
 
     createMutation.mutate(saleData);
@@ -433,7 +440,12 @@ const Sales = () => {
     yPos += 6;
     doc.text(`Vendedor: ${getUserName(saleDetails.user_id)}`, 14, yPos);
     yPos += 6;
-    
+
+    if (saleDetails.nf_number) {
+      doc.text(`NF: ${saleDetails.nf_number}`, 14, yPos);
+      yPos += 6;
+    }
+
     if (saleDetails.payment_method) {
       doc.text(`Forma de Pagamento: ${saleDetails.payment_method}`, 14, yPos);
       yPos += 6;
@@ -609,6 +621,16 @@ const Sales = () => {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="nf_number">Número da NF (Opcional)</Label>
+                <Input
+                  id="nf_number"
+                  value={formData.nf_number}
+                  onChange={(e) => setFormData({ ...formData, nf_number: e.target.value })}
+                  placeholder="Ex: 001234"
+                />
               </div>
 
               <div className="border-t pt-4">
@@ -837,7 +859,7 @@ const Sales = () => {
                   variant="outline"
                   onClick={() => {
                     setIsDialogOpen(false);
-                    setFormData({ client_id: "", product_id: "", quantity: "", price: "", notes: "", due_date: "" });
+                    setFormData({ client_id: "", product_id: "", quantity: "", price: "", notes: "", due_date: "", nf_number: "" });
                     setSaleItems([]);
                   }}
                   disabled={createMutation.isPending}
@@ -869,6 +891,14 @@ const Sales = () => {
             <div className="flex items-center justify-between">
               <CardTitle>Histórico de Vendas</CardTitle>
               <div className="flex items-center gap-2">
+                <Label className="text-sm">#</Label>
+                <Input
+                  type="number"
+                  placeholder="ID"
+                  value={idFilter}
+                  onChange={(e) => { setIdFilter(e.target.value); setCurrentPage(1); }}
+                  className="w-[80px]"
+                />
                 <Label htmlFor="status-filter" className="text-sm">Filtrar por status:</Label>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-[180px]">
@@ -936,6 +966,7 @@ const Sales = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">#</TableHead>
                 <TableHead>
                   <Button
                     variant="ghost"
@@ -953,6 +984,7 @@ const Sales = () => {
                     )}
                   </Button>
                 </TableHead>
+                <TableHead>NF</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Status</TableHead>
@@ -962,16 +994,20 @@ const Sales = () => {
             </TableHeader>
             <TableBody>
                 {paginatedData.map((sale: any) => (
-                  <TableRow 
+                  <TableRow
                     key={sale.id}
                     onDoubleClick={() => handleRowDoubleClick(sale.id)}
                     className="cursor-pointer hover:bg-muted/50"
                   >
+                    <TableCell className="text-xs text-muted-foreground font-mono">{sale.id}</TableCell>
                     <TableCell>
-                      {sale.date 
+                      {sale.date
                         ? new Date(sale.date).toLocaleDateString('pt-BR')
                         : "-"
                       }
+                    </TableCell>
+                    <TableCell className="font-medium text-xs">
+                      {sale.nf_number || <span className="text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell className="font-medium">
                       {getClientName(sale.client_id)}
@@ -1189,6 +1225,12 @@ const Sales = () => {
                   <Label className="text-sm font-medium text-muted-foreground">Cliente</Label>
                   <p className="text-base">{getClientName(saleDetails.client_id)}</p>
                 </div>
+                {saleDetails.nf_number && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Número da NF</Label>
+                    <p className="text-base font-medium">{saleDetails.nf_number}</p>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-muted-foreground">Total</Label>
                   <p className="text-base font-semibold text-lg">

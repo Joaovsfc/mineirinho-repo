@@ -40,6 +40,7 @@ const Consignment = () => {
   const [closeItems, setCloseItems] = useState<CloseItem[]>([]);
   const [dueDate, setDueDate] = useState("");
   const [closeNotes, setCloseNotes] = useState("");
+  const [closeNfNumber, setCloseNfNumber] = useState("");
   const [formData, setFormData] = useState({
     client_id: "",
     product_id: "",
@@ -48,6 +49,7 @@ const Consignment = () => {
     notes: "",
   });
   const [currentPage, setCurrentPage] = useState(1);
+  const [idFilter, setIdFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateSort, setDateSort] = useState<"asc" | "desc" | null>("desc"); // Padrão: mais recente primeiro
   const [dateFrom, setDateFrom] = useState<string>("");
@@ -63,7 +65,11 @@ const Consignment = () => {
   // Filtrar e ordenar consignações
   const filteredConsignments = useMemo(() => {
     let filtered = consignments;
-    
+
+    if (idFilter.trim()) {
+      filtered = filtered.filter((consignment: any) => String(consignment.id).includes(idFilter.trim()));
+    }
+
     // Filtrar por status
     if (statusFilter !== "all") {
       filtered = filtered.filter((consignment: any) => {
@@ -102,7 +108,7 @@ const Consignment = () => {
     }
     
     return filtered;
-  }, [consignments, statusFilter, dateSort, dateFrom, dateTo]);
+  }, [consignments, idFilter, statusFilter, dateSort, dateFrom, dateTo]);
 
   // Calcular paginação
   const paginatedData = useMemo(() => {
@@ -360,6 +366,7 @@ const Consignment = () => {
   const handleClose = (consignment: any) => {
     setSelectedConsignment(consignment);
     setCloseNotes(consignment.notes || "");
+    setCloseNfNumber("");
     setIsCloseDialogOpen(true);
   };
 
@@ -422,7 +429,8 @@ const Consignment = () => {
         items: itemsWithSubtotal,
         total,
         due_date: dueDate,
-        notes: closeNotes.trim() || undefined, // Enviar undefined se vazio, para o backend usar as originais
+        notes: closeNotes.trim() || undefined,
+        nf_number: closeNfNumber.trim() || null,
       },
     });
   };
@@ -1033,6 +1041,14 @@ const Consignment = () => {
             <div className="flex items-center justify-between">
               <CardTitle>Histórico de Consignações</CardTitle>
               <div className="flex items-center gap-2">
+                <Label htmlFor="id-filter" className="text-sm">ID:</Label>
+                <Input
+                  id="id-filter"
+                  value={idFilter}
+                  onChange={(e) => setIdFilter(e.target.value)}
+                  placeholder="Filtrar..."
+                  className="w-[80px]"
+                />
                 <Label htmlFor="status-filter" className="text-sm">Filtrar por status:</Label>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-[180px]">
@@ -1104,6 +1120,7 @@ const Consignment = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">#</TableHead>
                   <TableHead>
                     <Button
                       variant="ghost"
@@ -1142,8 +1159,9 @@ const Consignment = () => {
                       onDoubleClick={() => handleRowDoubleClick(consignment.id)}
                       className="cursor-pointer hover:bg-muted/50"
                     >
+                      <TableCell className="text-xs text-muted-foreground font-mono">{consignment.id}</TableCell>
                       <TableCell>
-                        {consignment.date 
+                        {consignment.date
                           ? new Date(consignment.date).toLocaleDateString('pt-BR')
                           : "-"
                         }
@@ -1368,6 +1386,16 @@ const Consignment = () => {
               </div>
 
               <div className="space-y-2 pt-4 border-t">
+                <Label htmlFor="closeNfNumber">Número da NF (Opcional)</Label>
+                <Input
+                  id="closeNfNumber"
+                  placeholder="Ex: 001234"
+                  value={closeNfNumber}
+                  onChange={(e) => setCloseNfNumber(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2 pt-4 border-t">
                 <Label htmlFor="closeNotes">Editar Observações da Consignação (Opcional)</Label>
                 <Textarea
                   id="closeNotes"
@@ -1391,6 +1419,7 @@ const Consignment = () => {
                     setCloseItems([]);
                     setDueDate("");
                     setCloseNotes("");
+                    setCloseNfNumber("");
                   }}
                   disabled={closeMutation.isPending}
                 >

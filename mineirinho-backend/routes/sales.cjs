@@ -70,12 +70,12 @@ router.get('/:id', (req, res) => {
 // POST /api/sales
 router.post('/', (req, res) => {
   try {
-    const { client_id, total, items, date, status, notes, user_id, due_date } = req.body;
-    
+    const { client_id, total, items, date, status, notes, user_id, due_date, nf_number } = req.body;
+
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'É necessário pelo menos um item na venda' });
     }
-    
+
     // Validar estoque antes de criar a venda
     const stockErrors = [];
     for (const item of items) {
@@ -91,80 +91,41 @@ router.post('/', (req, res) => {
         });
       }
     }
-    
+
     if (stockErrors.length > 0) {
-      const errorMessages = stockErrors.map(err => 
+      const errorMessages = stockErrors.map(err =>
         `${err.product_name}: necessário ${err.required}, disponível ${err.available}`
       );
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Estoque insuficiente',
         details: stockErrors,
         message: `Estoque insuficiente para: ${errorMessages.join('; ')}`
       });
     }
-    
-    // Verificar quais colunas existem
+
+    // Verificar quais colunas existem e construir INSERT dinamicamente
     const columns = db.prepare('PRAGMA table_info(sales)').all();
     const hasUserId = columns.some(col => col.name === 'user_id');
     const hasDueDate = columns.some(col => col.name === 'due_date');
-    
-    // Inserir venda
-    let saleStmt;
-    let saleResult;
-    
-    if (hasUserId && hasDueDate) {
-      saleStmt = db.prepare(`
-        INSERT INTO sales (client_id, total, date, status, notes, user_id, due_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `);
-      saleResult = saleStmt.run(
-        client_id || null,
-        total,
-        date || new Date().toISOString(),
-        status || 'Pendente',
-        notes || null,
-        user_id || null,
-        due_date || null
-      );
-    } else if (hasUserId) {
-      saleStmt = db.prepare(`
-        INSERT INTO sales (client_id, total, date, status, notes, user_id)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-      saleResult = saleStmt.run(
-        client_id || null,
-        total,
-        date || new Date().toISOString(),
-        status || 'Pendente',
-        notes || null,
-        user_id || null
-      );
-    } else if (hasDueDate) {
-      saleStmt = db.prepare(`
-        INSERT INTO sales (client_id, total, date, status, notes, due_date)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-      saleResult = saleStmt.run(
-        client_id || null,
-        total,
-        date || new Date().toISOString(),
-        status || 'Pendente',
-        notes || null,
-        due_date || null
-      );
-    } else {
-      saleStmt = db.prepare(`
-        INSERT INTO sales (client_id, total, date, status, notes)
-        VALUES (?, ?, ?, ?, ?)
-      `);
-      saleResult = saleStmt.run(
-        client_id || null,
-        total,
-        date || new Date().toISOString(),
-        status || 'Pendente',
-        notes || null
-      );
-    }
+    const hasNfNumber = columns.some(col => col.name === 'nf_number');
+
+    const insertCols = ['client_id', 'total', 'date', 'status', 'notes'];
+    const insertVals = [
+      client_id || null,
+      total,
+      date || new Date().toISOString(),
+      status || 'Pendente',
+      notes || null,
+    ];
+
+    if (hasUserId) { insertCols.push('user_id'); insertVals.push(user_id || null); }
+    if (hasDueDate) { insertCols.push('due_date'); insertVals.push(due_date || null); }
+    if (hasNfNumber) { insertCols.push('nf_number'); insertVals.push(nf_number || null); }
+
+    const saleStmt = db.prepare(
+      `INSERT INTO sales (${insertCols.join(', ')}) VALUES (${insertCols.map(() => '?').join(', ')})`
+    );
+    const saleResult = saleStmt.run(...insertVals);
     const saleId = saleResult.lastInsertRowid;
     
     // Inserir itens da venda
@@ -284,7 +245,7 @@ router.post('/', (req, res) => {
 router.put('/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { status, total, payment_method } = req.body;
+    const { status, total, payment_method, nf_number } = req.body;
     
     const updates = [];
     const values = [];
@@ -334,7 +295,12 @@ router.put('/:id', (req, res) => {
       updates.push('total = ?');
       values.push(total);
     }
-    
+
+    if (nf_number !== undefined) {
+      updates.push('nf_number = ?');
+      values.push(nf_number || null);
+    }
+
     if (updates.length > 0) {
       values.push(id);
       const stmt = db.prepare(`UPDATE sales SET ${updates.join(', ')} WHERE id = ?`);

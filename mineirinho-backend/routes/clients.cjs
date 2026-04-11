@@ -210,6 +210,71 @@ router.put('/:id', (req, res) => {
   }
 });
 
+// GET /api/clients/:id/sales
+router.get('/:id/sales', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const client = db.prepare('SELECT id FROM clients WHERE id = ?').get(id);
+    if (!client) {
+      return res.status(404).json({ error: 'Cliente não encontrado' });
+    }
+
+    const sales = db.prepare('SELECT * FROM sales WHERE client_id = ? ORDER BY date DESC').all(id);
+
+    const salesWithItems = sales.map(sale => {
+      const items = db.prepare(`
+        SELECT si.*, p.name as product_name, p.unit as product_unit
+        FROM sale_items si
+        LEFT JOIN products p ON si.product_id = p.id
+        WHERE si.sale_id = ?
+      `).all(sale.id);
+      return { ...sale, items };
+    });
+
+    res.json(salesWithItems);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/clients/:id/consignments
+router.get('/:id/consignments', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const client = db.prepare('SELECT id FROM clients WHERE id = ?').get(id);
+    if (!client) {
+      return res.status(404).json({ error: 'Cliente não encontrado' });
+    }
+
+    const consignments = db.prepare('SELECT * FROM consignments WHERE client_id = ? ORDER BY date DESC').all(id);
+
+    let hasItemsTable = false;
+    try {
+      const table = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='consignment_items'").get();
+      hasItemsTable = !!table;
+    } catch (e) {}
+
+    const consignmentsWithItems = consignments.map(consignment => {
+      if (hasItemsTable) {
+        const items = db.prepare(`
+          SELECT ci.*, p.name as product_name, p.unit as product_unit
+          FROM consignment_items ci
+          LEFT JOIN products p ON ci.product_id = p.id
+          WHERE ci.consignment_id = ?
+        `).all(consignment.id);
+        return { ...consignment, items };
+      }
+      return { ...consignment, items: [] };
+    });
+
+    res.json(consignmentsWithItems);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // DELETE /api/clients/:id
 router.delete('/:id', (req, res) => {
   try {

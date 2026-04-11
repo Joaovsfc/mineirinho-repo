@@ -9,10 +9,10 @@ const { authenticateToken } = require('./middleware/auth.cjs');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// CORS: origens a partir de variável de ambiente ou padrão
+// CORS: origens a partir de variável de ambiente, ou aceita qualquer origem
 const corsOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
-  : ['http://localhost:8080', 'http://127.0.0.1:8080', 'http://localhost:5173', 'http://127.0.0.1:5173', 'file://'];
+  : true; // aceita qualquer origem (rede local)
 
 app.use(cors({
   origin: corsOrigins,
@@ -184,6 +184,8 @@ async function initializeDatabase() {
         addColumnIfNotExists('users', 'active', 'INTEGER DEFAULT 1 NOT NULL');
         try { db.prepare('UPDATE users SET active = 1 WHERE active IS NULL').run(); } catch (e) {}
         try { db.exec('CREATE INDEX IF NOT EXISTS idx_users_active ON users(active)'); } catch (e) {}
+      } else if (file === '019_add_nf_number_to_sales.sql') {
+        addColumnIfNotExists('sales', 'nf_number', 'TEXT');
       } else if (file === '011_make_consignment_fields_nullable.sql') {
         try {
           const itemsTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='consignment_items'").get();
@@ -245,12 +247,43 @@ async function initializeDatabase() {
   }
 }
 
+function startAutoBackupScheduler() {
+  const CHECK_INTERVAL_MS = 30 * 60 * 1000; // verifica a cada 30 minutos
+
+  function check() {
+    try {
+      const { readSettings } = require('./database/settings.cjs');
+      const { performUsbBackup } = require('./routes/database.cjs');
+      const s = readSettings();
+
+      if (!s.usb_backup_enabled || !s.usb_backup_path) return;
+
+      const intervalMs = (s.usb_backup_interval_hours || 24) * 60 * 60 * 1000;
+      const lastBackupAt = s.usb_last_backup_at ? new Date(s.usb_last_backup_at).getTime() : 0;
+      const now = Date.now();
+
+      if (now - lastBackupAt >= intervalMs) {
+        console.log('⏰ Iniciando backup automático no pendrive...');
+        performUsbBackup();
+      }
+    } catch (e) {
+      console.error('❌ Erro no scheduler de backup:', e.message);
+    }
+  }
+
+  // Verificar logo na inicialização e depois a cada 30min
+  setTimeout(check, 5000);
+  setInterval(check, CHECK_INTERVAL_MS);
+  console.log('⏰ Scheduler de backup automático iniciado');
+}
+
 async function startServer() {
   await initializeDatabase();
-  app.listen(PORT, () => {
-    console.log(`🚀 Backend running at http://localhost:${PORT}`);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Backend running at http://0.0.0.0:${PORT} (aceita qualquer IP)`);
     console.log(`📊 Health: http://localhost:${PORT}/api/health`);
   });
+  startAutoBackupScheduler();
 }
 
 module.exports = { startServer, app };

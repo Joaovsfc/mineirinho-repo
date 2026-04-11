@@ -109,9 +109,16 @@
       "buildResources": "build"
     },
     "files": [
-      "dist/**/*",
-      "electron/**/*",
-      "node_modules/**/*",
+      {
+        "from": "dist",
+        "to": "dist",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "electron",
+        "to": "electron",
+        "filter": ["**/*"]
+      },
       "package.json"
     ],
     "win": {

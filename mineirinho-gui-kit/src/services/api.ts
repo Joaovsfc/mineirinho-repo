@@ -179,6 +179,14 @@ class ApiService {
     });
   }
 
+  async getClientSales(id: number) {
+    return this.request<any[]>(`/clients/${id}/sales`);
+  }
+
+  async getClientConsignments(id: number) {
+    return this.request<any[]>(`/clients/${id}/consignments`);
+  }
+
   // ==================== Sales ====================
   async getSales() {
     return this.request<any[]>('/sales');
@@ -188,14 +196,14 @@ class ApiService {
     return this.request<any>(`/sales/${id}`);
   }
 
-  async createSale(data: { client_id?: number; total: number; items: Array<{ product_id: number; quantity: number; price: number }>; due_date?: string | null; notes?: string | null; user_id?: number | null }) {
+  async createSale(data: { client_id?: number; total: number; items: Array<{ product_id: number; quantity: number; price: number }>; due_date?: string | null; notes?: string | null; user_id?: number | null; nf_number?: string | null }) {
     return this.request<any>('/sales', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateSale(id: number, data: { status?: string; total?: number; payment_method?: string }) {
+  async updateSale(id: number, data: { status?: string; total?: number; payment_method?: string; nf_number?: string | null }) {
     return this.request<any>(`/sales/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -243,6 +251,7 @@ class ApiService {
     due_date?: string;
     date?: string;
     notes?: string | null;
+    nf_number?: string | null;
   }) {
     return this.request<any>(`/consignments/${id}/close`, {
       method: 'POST',
@@ -498,6 +507,31 @@ class ApiService {
       tableCounts: Record<string, number>;
       lastModified: string;
     }>('/database/info');
+  }
+
+  async getBackupSettings() {
+    return this.request<{
+      usb_path: string;
+      enabled: boolean;
+      interval_hours: number;
+      last_backup_at: string | null;
+      last_backup_status: 'success' | 'error' | null;
+      last_backup_file: string | null;
+      last_backup_error: string | null;
+    }>('/database/backup-settings');
+  }
+
+  async saveBackupSettings(data: { usb_path: string; enabled: boolean; interval_hours: number }) {
+    return this.request<{ success: boolean }>('/database/backup-settings', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async triggerUsbBackup() {
+    return this.request<{ success: boolean; file: string }>('/database/backup-usb', {
+      method: 'POST',
+    });
   }
 }
 

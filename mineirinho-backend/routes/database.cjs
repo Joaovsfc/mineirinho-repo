@@ -6,6 +6,7 @@ const Database = require('better-sqlite3');
 
 let db = require('../database/db.cjs');
 const { requireAdmin } = require('../middleware/auth.cjs');
+const { readSettings, writeSettings } = require('../database/settings.cjs');
 const getDbPath = db.getDbPath;
 
 const router = express.Router();
@@ -136,6 +137,101 @@ router.post('/import', upload.single('file'), requireAdmin, (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// ── Backup automático para pendrive ──────────────────────────────────────────
+
+function performUsbBackup() {
+  const settings = readSettings();
+  if (!settings.usb_backup_path) {
+    return { success: false, error: 'Caminho do pendrive não configurado' };
+  }
+
+  const usbPath = settings.usb_backup_path;
+  if (!fs.existsSync(usbPath)) {
+    const msg = `Pendrive/pasta não encontrado: ${usbPath}`;
+    writeSettings({ usb_last_backup_at: new Date().toISOString(), usb_last_backup_status: 'error', usb_last_backup_error: msg });
+    return { success: false, error: msg };
+  }
+
+  try {
+    const dbPath = getDbPath();
+    try { db.pragma('wal_checkpoint(FULL)'); } catch (e) {}
+
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 16);
+    const filename = `mineirinho-backup-${timestamp}.db`;
+    const destPath = path.join(usbPath, filename);
+
+    fs.copyFileSync(dbPath, destPath);
+
+    // Manter apenas os últimos 5 backups na pasta
+    const allBackups = fs.readdirSync(usbPath)
+      .filter(f => f.startsWith('mineirinho-backup-') && f.endsWith('.db'))
+      .map(f => ({ name: f, mtime: fs.statSync(path.join(usbPath, f)).mtime }))
+      .sort((a, b) => b.mtime - a.mtime);
+
+    if (allBackups.length > 5) {
+      allBackups.slice(5).forEach(f => {
+        try { fs.unlinkSync(path.join(usbPath, f.name)); } catch (e) {}
+      });
+    }
+
+    writeSettings({
+      usb_last_backup_at: now.toISOString(),
+      usb_last_backup_status: 'success',
+      usb_last_backup_file: filename,
+      usb_last_backup_error: null,
+    });
+
+    console.log(`✅ Backup automático no pendrive: ${destPath}`);
+    return { success: true, file: filename };
+  } catch (error) {
+    const msg = error.message;
+    writeSettings({ usb_last_backup_at: new Date().toISOString(), usb_last_backup_status: 'error', usb_last_backup_error: msg });
+    console.error('❌ Erro no backup do pendrive:', msg);
+    return { success: false, error: msg };
+  }
+}
+
+router.get('/backup-settings', requireAdmin, (req, res) => {
+  const s = readSettings();
+  res.json({
+    usb_path: s.usb_backup_path || '',
+    enabled: s.usb_backup_enabled || false,
+    interval_hours: s.usb_backup_interval_hours || 24,
+    last_backup_at: s.usb_last_backup_at || null,
+    last_backup_status: s.usb_last_backup_status || null,
+    last_backup_file: s.usb_last_backup_file || null,
+    last_backup_error: s.usb_last_backup_error || null,
+  });
+});
+
+router.post('/backup-settings', requireAdmin, (req, res) => {
+  const { usb_path, enabled, interval_hours } = req.body;
+  if (typeof usb_path !== 'string') {
+    return res.status(400).json({ error: 'usb_path inválido' });
+  }
+  const hours = Number(interval_hours);
+  if (!Number.isFinite(hours) || hours < 1) {
+    return res.status(400).json({ error: 'interval_hours inválido' });
+  }
+  writeSettings({
+    usb_backup_path: usb_path.trim(),
+    usb_backup_enabled: Boolean(enabled),
+    usb_backup_interval_hours: hours,
+  });
+  res.json({ success: true });
+});
+
+router.post('/backup-usb', requireAdmin, (req, res) => {
+  const result = performUsbBackup();
+  if (!result.success) {
+    return res.status(500).json({ error: result.error });
+  }
+  res.json({ success: true, file: result.file });
+});
+
+module.exports.performUsbBackup = performUsbBackup;
 
 router.get('/info', requireAdmin, (req, res) => {
   try {

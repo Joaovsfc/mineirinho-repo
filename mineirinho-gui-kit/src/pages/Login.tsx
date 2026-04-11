@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, UserPlus } from "lucide-react";
 import { apiService } from "@/services/api";
+import ConnectionStatus from "@/components/ConnectionStatus";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -125,6 +126,9 @@ const Login = () => {
           <CardDescription className="text-center">
             Sistema de Gestão de Fábrica de Pão de Queijo
           </CardDescription>
+          <div className="flex justify-center pt-1">
+            <ConnectionStatus />
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">

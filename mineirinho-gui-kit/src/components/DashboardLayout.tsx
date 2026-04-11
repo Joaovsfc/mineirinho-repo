@@ -4,6 +4,7 @@ import { SidebarTrigger } from "./ui/sidebar";
 import { Button } from "./ui/button";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import ConnectionStatus from "./ConnectionStatus";
 
 const DashboardLayout = () => {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ const DashboardLayout = () => {
               Mineirinho de Ouro - Gestão de Fábrica
             </h2>
             <div className="flex items-center gap-4">
+              <ConnectionStatus />
               <div className="text-sm text-muted-foreground">
                 {user?.username && `Usuário: ${user.username}`}
               </div>

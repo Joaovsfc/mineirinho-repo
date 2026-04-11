@@ -396,7 +396,7 @@ router.put('/:id', (req, res) => {
 router.post('/:id/close', (req, res) => {
   try {
     const { id } = req.params;
-    const { items, total, date, notes } = req.body;
+    const { items, total, date, notes, nf_number } = req.body;
     
     // Buscar consignação
     const consignment = db.prepare('SELECT * FROM consignments WHERE id = ?').get(id);
@@ -455,44 +455,27 @@ router.post('/:id/close', (req, res) => {
     // Criar venda
     const saleDate = date || new Date().toISOString();
     
-    // Verificar se a coluna user_id existe em sales
+    // Verificar quais colunas existem em sales e construir INSERT dinamicamente
     const saleColumns = db.prepare('PRAGMA table_info(sales)').all();
     const hasSaleUserId = saleColumns.some(col => col.name === 'user_id');
-    
+    const hasSaleNfNumber = saleColumns.some(col => col.name === 'nf_number');
+
     // Usar o user_id da consignação original (se existir)
     const consignmentUserId = consignment.user_id || null;
-    
-    let saleStmt;
-    let saleResult;
-    
-    // Preparar notas da venda: sempre usar a mensagem padrão indicando que veio da consignação
-    // As observações editadas na consignação ficam na consignação, não na venda
+
+    // Preparar notas da venda
     const saleNotes = `Venda gerada a partir da consignação #${id}`;
-    
-    if (hasSaleUserId) {
-      saleStmt = db.prepare(`
-        INSERT INTO sales (client_id, total, date, status, notes, user_id)
-        VALUES (?, ?, ?, 'Pendente', ?, ?)
-      `);
-      saleResult = saleStmt.run(
-        consignment.client_id,
-        total || 0,
-        saleDate,
-        saleNotes,
-        consignmentUserId
-      );
-    } else {
-      saleStmt = db.prepare(`
-        INSERT INTO sales (client_id, total, date, status, notes)
-        VALUES (?, ?, ?, 'Pendente', ?)
-      `);
-      saleResult = saleStmt.run(
-        consignment.client_id,
-        total || 0,
-        saleDate,
-        saleNotes
-      );
-    }
+
+    const saleCols = ['client_id', 'total', 'date', 'status', 'notes'];
+    const saleVals = [consignment.client_id, total || 0, saleDate, 'Pendente', saleNotes];
+
+    if (hasSaleUserId) { saleCols.push('user_id'); saleVals.push(consignmentUserId); }
+    if (hasSaleNfNumber) { saleCols.push('nf_number'); saleVals.push(nf_number || null); }
+
+    const saleStmt = db.prepare(
+      `INSERT INTO sales (${saleCols.join(', ')}) VALUES (${saleCols.map(() => '?').join(', ')})`
+    );
+    const saleResult = saleStmt.run(...saleVals);
     
     const saleId = saleResult.lastInsertRowid;
     
