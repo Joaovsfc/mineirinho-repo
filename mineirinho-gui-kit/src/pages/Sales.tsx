@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Loader2, X, Check, FileText, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Info } from "lucide-react";
+import { Plus, Loader2, X, Check, FileText, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Info, Ban } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
 import { apiService } from "@/services/api";
@@ -28,6 +28,8 @@ const Sales = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [saleToCancel, setSaleToCancel] = useState<{ id: number } | null>(null);
   const [selectedSaleId, setSelectedSaleId] = useState<number | null>(null);
   const [selectedSaleDetails, setSelectedSaleDetails] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState("");
@@ -267,6 +269,31 @@ const Sales = () => {
     },
   });
 
+  // Mutation para cancelar venda
+  const cancelMutation = useMutation({
+    mutationFn: (id: number) => apiService.cancelSale(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['accountsReceivable'] });
+      toast({
+        title: "Venda cancelada!",
+        description: "A venda foi cancelada e o estoque foi extornado.",
+      });
+      setIsCancelDialogOpen(false);
+      setSaleToCancel(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Não foi possível cancelar",
+        description: error.message,
+        variant: "destructive",
+      });
+      setIsCancelDialogOpen(false);
+      setSaleToCancel(null);
+    },
+  });
+
   const addItem = () => {
     if (!formData.product_id || !formData.quantity || !formData.price) {
       toast({
@@ -363,6 +390,9 @@ const Sales = () => {
   const getStatusBadge = (status: string) => {
     if (status === "Pago") {
       return <Badge variant="outline" className="bg-success/10 text-success border-success/20">Pago</Badge>;
+    }
+    if (status === "Cancelado") {
+      return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">Cancelado</Badge>;
     }
     return <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">Pendente</Badge>;
   };
@@ -908,6 +938,7 @@ const Sales = () => {
                     <SelectItem value="all">Todos</SelectItem>
                     <SelectItem value="Pendente">Pendente</SelectItem>
                     <SelectItem value="Pago">Pago</SelectItem>
+                    <SelectItem value="Cancelado">Cancelado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1040,6 +1071,22 @@ const Sales = () => {
                               <Check className="mr-2 h-4 w-4" />
                             )}
                             Marcar como Pago
+                          </Button>
+                        )}
+                        {sale.status !== "Cancelado" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSaleToCancel({ id: sale.id });
+                              setIsCancelDialogOpen(true);
+                            }}
+                            disabled={cancelMutation.isPending}
+                          >
+                            <Ban className="mr-2 h-4 w-4" />
+                            Cancelar
                           </Button>
                         )}
                       </div>
@@ -1181,6 +1228,51 @@ const Sales = () => {
                 )}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Confirmação de Cancelamento */}
+      <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancelar Venda #{saleToCancel?.id}</DialogTitle>
+            <DialogDescription>
+              Esta ação não pode ser desfeita. O estoque dos produtos será extornado e a conta a receber vinculada será cancelada.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsCancelDialogOpen(false);
+                setSaleToCancel(null);
+              }}
+              disabled={cancelMutation.isPending}
+            >
+              Voltar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (saleToCancel) {
+                  cancelMutation.mutate(saleToCancel.id);
+                }
+              }}
+              disabled={cancelMutation.isPending}
+            >
+              {cancelMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Cancelando...
+                </>
+              ) : (
+                <>
+                  <Ban className="mr-2 h-4 w-4" />
+                  Confirmar Cancelamento
+                </>
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

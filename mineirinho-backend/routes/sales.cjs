@@ -316,6 +316,88 @@ router.put('/:id', (req, res) => {
   }
 });
 
+// POST /api/sales/:id/cancel
+router.post('/:id/cancel', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verificar se a venda existe
+    const sale = db.prepare('SELECT * FROM sales WHERE id = ?').get(id);
+    if (!sale) {
+      return res.status(404).json({ error: 'Venda não encontrada' });
+    }
+
+    // Verificar se já está cancelada
+    if (sale.status === 'Cancelado') {
+      return res.status(400).json({ error: 'Esta venda já foi cancelada' });
+    }
+
+    // Verificar se a venda originou-se de uma consignação
+    try {
+      const consignmentCols = db.prepare('PRAGMA table_info(consignments)').all();
+      const hasSaleId = consignmentCols.some(col => col.name === 'sale_id');
+      if (hasSaleId) {
+        const linkedConsignment = db.prepare('SELECT id FROM consignments WHERE sale_id = ?').get(id);
+        if (linkedConsignment) {
+          return res.status(409).json({
+            error: 'Venda de consignação não pode ser cancelada',
+            message: `Esta venda foi gerada pelo encerramento da Consignação #${linkedConsignment.id} e não pode ser cancelada. Para reverter, edite a consignação diretamente.`
+          });
+        }
+      }
+    } catch (e) {
+      // Se não conseguir verificar, prosseguir com cautela
+    }
+
+    // Buscar itens da venda para extornar estoque
+    const saleItems = db.prepare('SELECT * FROM sale_items WHERE sale_id = ?').all(id);
+
+    // Registrar movimentações de entrada (extorno)
+    try {
+      const stockTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='stock_movements'").get();
+      if (stockTable) {
+        const movementStmt = db.prepare(`
+          INSERT INTO stock_movements (product_id, type, quantity, reference_type, reference_id, notes)
+          VALUES (?, 'entrada', ?, 'venda', ?, ?)
+        `);
+        for (const item of saleItems) {
+          movementStmt.run(
+            item.product_id,
+            item.quantity,
+            id,
+            `Cancelamento de venda #${id}`
+          );
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️  Erro ao registrar extorno de estoque:', e.message);
+    }
+
+    // Cancelar conta a receber vinculada
+    try {
+      const arCols = db.prepare('PRAGMA table_info(accounts_receivable)').all();
+      const hasSaleId = arCols.some(col => col.name === 'sale_id');
+      if (hasSaleId) {
+        db.prepare(`
+          UPDATE accounts_receivable SET status = 'Cancelado' WHERE sale_id = ?
+        `).run(id);
+      }
+    } catch (e) {
+      console.warn('⚠️  Erro ao cancelar conta a receber:', e.message);
+    }
+
+    // Atualizar status da venda para Cancelado
+    db.prepare("UPDATE sales SET status = 'Cancelado' WHERE id = ?").run(id);
+
+    const updatedSale = db.prepare('SELECT * FROM sales WHERE id = ?').get(id);
+    const items = db.prepare('SELECT * FROM sale_items WHERE sale_id = ?').all(id);
+
+    res.json({ ...updatedSale, items });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // DELETE /api/sales/:id
 router.delete('/:id', (req, res) => {
   try {

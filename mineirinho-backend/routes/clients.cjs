@@ -43,11 +43,11 @@ router.get('/:id', (req, res) => {
 // POST /api/clients
 router.post('/', (req, res) => {
   try {
-    const { name, email, address, cnpj_cpf, state_registration, buyer_name, phones, price_tier } = req.body;
+    const { name, email, address, cnpj_cpf, state_registration, buyer_name, fantasy_name, phones, price_tier } = req.body;
     if (!name) {
       return res.status(400).json({ error: 'Nome é obrigatório' });
     }
-    
+
     // Validar faixa de preço (deve ser entre 1 e 4)
     let finalPriceTier = 1; // Padrão: Faixa 1
     if (price_tier !== undefined && price_tier !== null) {
@@ -57,21 +57,37 @@ router.post('/', (req, res) => {
       }
       finalPriceTier = tier;
     }
-    
-    // Verificar se a coluna price_tier existe
+
+    // Verificar colunas existentes
     const columns = db.prepare('PRAGMA table_info(clients)').all();
     const hasPriceTier = columns.some(col => col.name === 'price_tier');
-    
+    const hasFantasyName = columns.some(col => col.name === 'fantasy_name');
+
     // Inserir cliente
     let result;
-    if (hasPriceTier) {
+    if (hasPriceTier && hasFantasyName) {
+      const stmt = db.prepare(`
+        INSERT INTO clients (name, email, address, cnpj_cpf, state_registration, buyer_name, fantasy_name, price_tier)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      result = stmt.run(
+        name,
+        email || null,
+        address || null,
+        cnpj_cpf || null,
+        state_registration || null,
+        buyer_name || null,
+        fantasy_name || null,
+        finalPriceTier
+      );
+    } else if (hasPriceTier) {
       const stmt = db.prepare(`
         INSERT INTO clients (name, email, address, cnpj_cpf, state_registration, buyer_name, price_tier)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `);
       result = stmt.run(
-        name, 
-        email || null, 
+        name,
+        email || null,
         address || null,
         cnpj_cpf || null,
         state_registration || null,
@@ -85,8 +101,8 @@ router.post('/', (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?)
       `);
       result = stmt.run(
-        name, 
-        email || null, 
+        name,
+        email || null,
         address || null,
         cnpj_cpf || null,
         state_registration || null,
@@ -125,14 +141,14 @@ router.post('/', (req, res) => {
 router.put('/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, address, cnpj_cpf, state_registration, buyer_name, phones, price_tier } = req.body;
-    
+    const { name, email, address, cnpj_cpf, state_registration, buyer_name, fantasy_name, phones, price_tier } = req.body;
+
     // Verificar se cliente existe
     const existingClient = db.prepare('SELECT * FROM clients WHERE id = ?').get(id);
     if (!existingClient) {
       return res.status(404).json({ error: 'Cliente não encontrado' });
     }
-    
+
     // Validar faixa de preço se fornecida
     let finalPriceTier = existingClient.price_tier || 1;
     if (price_tier !== undefined && price_tier !== null) {
@@ -142,21 +158,39 @@ router.put('/:id', (req, res) => {
       }
       finalPriceTier = tier;
     }
-    
-    // Verificar se a coluna price_tier existe
+
+    // Verificar colunas existentes
     const columns = db.prepare('PRAGMA table_info(clients)').all();
     const hasPriceTier = columns.some(col => col.name === 'price_tier');
-    
+    const hasFantasyName = columns.some(col => col.name === 'fantasy_name');
+
     // Atualizar cliente
-    if (hasPriceTier) {
+    if (hasPriceTier && hasFantasyName) {
       const stmt = db.prepare(`
-        UPDATE clients 
+        UPDATE clients
+        SET name = ?, email = ?, address = ?, cnpj_cpf = ?, state_registration = ?, buyer_name = ?, fantasy_name = ?, price_tier = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `);
+      stmt.run(
+        name !== undefined ? name : existingClient.name,
+        email !== undefined ? (email || null) : existingClient.email,
+        address !== undefined ? (address || null) : existingClient.address,
+        cnpj_cpf !== undefined ? (cnpj_cpf || null) : existingClient.cnpj_cpf,
+        state_registration !== undefined ? (state_registration || null) : existingClient.state_registration,
+        buyer_name !== undefined ? (buyer_name || null) : existingClient.buyer_name,
+        fantasy_name !== undefined ? (fantasy_name || null) : existingClient.fantasy_name,
+        finalPriceTier,
+        id
+      );
+    } else if (hasPriceTier) {
+      const stmt = db.prepare(`
+        UPDATE clients
         SET name = ?, email = ?, address = ?, cnpj_cpf = ?, state_registration = ?, buyer_name = ?, price_tier = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `);
       stmt.run(
-        name !== undefined ? name : existingClient.name, 
-        email !== undefined ? (email || null) : existingClient.email, 
+        name !== undefined ? name : existingClient.name,
+        email !== undefined ? (email || null) : existingClient.email,
         address !== undefined ? (address || null) : existingClient.address,
         cnpj_cpf !== undefined ? (cnpj_cpf || null) : existingClient.cnpj_cpf,
         state_registration !== undefined ? (state_registration || null) : existingClient.state_registration,
@@ -167,13 +201,13 @@ router.put('/:id', (req, res) => {
     } else {
       // Fallback: atualizar sem price_tier (compatibilidade)
       const stmt = db.prepare(`
-        UPDATE clients 
+        UPDATE clients
         SET name = ?, email = ?, address = ?, cnpj_cpf = ?, state_registration = ?, buyer_name = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `);
       stmt.run(
-        name !== undefined ? name : existingClient.name, 
-        email !== undefined ? (email || null) : existingClient.email, 
+        name !== undefined ? name : existingClient.name,
+        email !== undefined ? (email || null) : existingClient.email,
         address !== undefined ? (address || null) : existingClient.address,
         cnpj_cpf !== undefined ? (cnpj_cpf || null) : existingClient.cnpj_cpf,
         state_registration !== undefined ? (state_registration || null) : existingClient.state_registration,

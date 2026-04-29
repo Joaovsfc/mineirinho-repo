@@ -26,6 +26,7 @@ const Clients = () => {
     cnpj_cpf: "",
     state_registration: "",
     buyer_name: "",
+    fantasy_name: "",
     price_tier: "1",
   });
   const [phones, setPhones] = useState<Array<{ phone: string; phone_type: string }>>([
@@ -80,13 +81,14 @@ const Clients = () => {
 
   // Mutation para criar cliente
   const createMutation = useMutation({
-    mutationFn: (data: { 
-      name: string; 
-      email?: string; 
+    mutationFn: (data: {
+      name: string;
+      email?: string;
       address?: string;
       cnpj_cpf?: string;
       state_registration?: string;
       buyer_name?: string;
+      fantasy_name?: string;
       price_tier?: number;
       phones?: Array<{ phone: string; phone_type: string }>;
     }) =>
@@ -97,7 +99,7 @@ const Clients = () => {
         title: "Cliente cadastrado!",
         description: "O cliente foi adicionado com sucesso.",
       });
-      setFormData({ name: "", email: "", address: "", cnpj_cpf: "", state_registration: "", buyer_name: "", price_tier: "1" });
+      setFormData({ name: "", email: "", address: "", cnpj_cpf: "", state_registration: "", buyer_name: "", fantasy_name: "", price_tier: "1" });
       setPhones([{ phone: "", phone_type: "Principal" }]);
       setIsDialogOpen(false);
     },
@@ -112,18 +114,19 @@ const Clients = () => {
 
   // Mutation para atualizar cliente
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { 
-      id: number; 
-      data: { 
-        name?: string; 
-        email?: string; 
+    mutationFn: ({ id, data }: {
+      id: number;
+      data: {
+        name?: string;
+        email?: string;
         address?: string;
         cnpj_cpf?: string;
         state_registration?: string;
         buyer_name?: string;
+        fantasy_name?: string;
         price_tier?: number;
         phones?: Array<{ phone: string; phone_type: string }>;
-      } 
+      }
     }) =>
       apiService.updateClient(id, data),
     onSuccess: () => {
@@ -132,7 +135,7 @@ const Clients = () => {
         title: "Cliente atualizado!",
         description: "O cliente foi atualizado com sucesso.",
       });
-      setFormData({ name: "", email: "", address: "", cnpj_cpf: "", state_registration: "", buyer_name: "", price_tier: "1" });
+      setFormData({ name: "", email: "", address: "", cnpj_cpf: "", state_registration: "", buyer_name: "", fantasy_name: "", price_tier: "1" });
       setPhones([{ phone: "", phone_type: "Principal" }]);
       setEditingClient(null);
       setIsDialogOpen(false);
@@ -494,6 +497,7 @@ const Clients = () => {
       cnpj_cpf: formData.cnpj_cpf || undefined,
       state_registration: formData.state_registration || undefined,
       buyer_name: formData.buyer_name || undefined,
+      fantasy_name: formData.fantasy_name || undefined,
       price_tier: parseInt(formData.price_tier) || 1,
       phones: phones.filter(p => p.phone.trim() !== ""),
     };
@@ -530,6 +534,7 @@ const Clients = () => {
       cnpj_cpf: client.cnpj_cpf || "",
       state_registration: client.state_registration || "",
       buyer_name: client.buyer_name || "",
+      fantasy_name: client.fantasy_name || "",
       price_tier: client.price_tier?.toString() || "1",
     });
     // Carregar telefones do cliente
@@ -549,7 +554,7 @@ const Clients = () => {
 
   const handleNewClient = () => {
     setEditingClient(null);
-    setFormData({ name: "", email: "", address: "", cnpj_cpf: "", state_registration: "", buyer_name: "", price_tier: "1" });
+    setFormData({ name: "", email: "", address: "", cnpj_cpf: "", state_registration: "", buyer_name: "", fantasy_name: "", price_tier: "1" });
     setPhones([{ phone: "", phone_type: "Principal" }]);
     setIsDialogOpen(true);
   };
@@ -583,6 +588,16 @@ const Clients = () => {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Ex: Padaria Central Ltda"
                   required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="fantasy_name">Nome Fantasia</Label>
+                <Input
+                  id="fantasy_name"
+                  value={formData.fantasy_name}
+                  onChange={(e) => setFormData({ ...formData, fantasy_name: e.target.value })}
+                  placeholder="Ex: Padaria Central"
                 />
               </div>
 
@@ -780,6 +795,7 @@ const Clients = () => {
               <TableRow>
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Nome/Razão Social</TableHead>
+                  <TableHead>Nome Fantasia</TableHead>
                   <TableHead>CNPJ/CPF</TableHead>
                   <TableHead>Comprador</TableHead>
                   <TableHead>Faixa de Preço</TableHead>
@@ -797,6 +813,7 @@ const Clients = () => {
                 >
                   <TableCell className="text-xs text-muted-foreground font-mono">{client.id}</TableCell>
                   <TableCell className="font-medium">{client.name}</TableCell>
+                    <TableCell>{client.fantasy_name || "-"}</TableCell>
                     <TableCell>{client.cnpj_cpf || "-"}</TableCell>
                     <TableCell>{client.buyer_name || "-"}</TableCell>
                     <TableCell>

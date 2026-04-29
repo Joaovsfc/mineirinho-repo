@@ -52,7 +52,7 @@ class ApiService {
         const errorData: ApiError = await response.json().catch(() => ({
           error: response.statusText,
         }));
-        throw new Error(errorData.error || `API Error: ${response.statusText}`);
+        throw new Error(errorData.message || errorData.error || `API Error: ${response.statusText}`);
       }
 
       // Se a resposta estiver vazia, retornar objeto vazio
@@ -213,6 +213,12 @@ class ApiService {
   async deleteSale(id: number) {
     return this.request<{ success: boolean }>(`/sales/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  async cancelSale(id: number) {
+    return this.request<any>(`/sales/${id}/cancel`, {
+      method: 'POST',
     });
   }
 

@@ -186,6 +186,8 @@ async function initializeDatabase() {
         try { db.exec('CREATE INDEX IF NOT EXISTS idx_users_active ON users(active)'); } catch (e) {}
       } else if (file === '019_add_nf_number_to_sales.sql') {
         addColumnIfNotExists('sales', 'nf_number', 'TEXT');
+      } else if (file === '020_add_fantasy_name_to_clients.sql') {
+        addColumnIfNotExists('clients', 'fantasy_name', 'TEXT');
       } else if (file === '011_make_consignment_fields_nullable.sql') {
         try {
           const itemsTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='consignment_items'").get();
